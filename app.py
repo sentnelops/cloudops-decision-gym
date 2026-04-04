@@ -11,6 +11,9 @@ sys.path.insert(0, os.path.dirname(__file__))
 from typing import Any
 
 import gradio as gr
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel as _BaseModel
 
 from env.actions import Action as InternalAction
 from env.environment import CloudOpsEnv
@@ -662,6 +665,57 @@ def run_episode(scenario: str, _state: dict):
 
 
 # ---------------------------------------------------------------------------
+# OpenEnv REST API
+# ---------------------------------------------------------------------------
+
+class _ResetRequest(_BaseModel):
+    task_name: str = "easy"
+
+
+class _StepRequest(_BaseModel):
+    action: dict
+
+
+api = FastAPI(title="CloudOps Decision Gym API")
+_api_env: CloudOpsEnv | None = None
+
+
+@api.post("/reset")
+async def api_reset(req: _ResetRequest = None):  # noqa: B008
+    global _api_env
+    task = (req.task_name if req else "easy") or "easy"
+    try:
+        _api_env = CloudOpsEnv(scenario=task)
+    except ValueError as exc:
+        return JSONResponse(status_code=400, content={"error": str(exc)})
+    obs = _api_env.reset()
+    return {"observation": obs.model_dump()}
+
+
+@api.post("/step")
+async def api_step(req: _StepRequest):
+    global _api_env
+    if _api_env is None:
+        return JSONResponse(status_code=400, content={"error": "Call /reset first"})
+    try:
+        action = Action(action_type=req.action.get("action_type", "NOOP"))
+        obs, reward, done, info = _api_env.step(action)
+    except Exception as exc:
+        return JSONResponse(status_code=400, content={"error": str(exc)})
+    # Filter info to JSON-serialisable primitives
+    safe_info = {
+        k: v for k, v in info.items()
+        if isinstance(v, (str, int, float, bool, type(None), dict))
+    }
+    return {
+        "observation": obs.model_dump(),
+        "reward": reward.value,
+        "done": done,
+        "info": safe_info,
+    }
+
+
+# ---------------------------------------------------------------------------
 # UI
 # ---------------------------------------------------------------------------
 
@@ -764,8 +818,15 @@ with gr.Blocks(
 
 
 # ---------------------------------------------------------------------------
+# ASGI app — Gradio mounted on FastAPI so /reset and /step also work
+# ---------------------------------------------------------------------------
+
+app = gr.mount_gradio_app(api, demo, path="/")
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    demo.launch(server_name="0.0.0.0", server_port=7860)
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=7860)
