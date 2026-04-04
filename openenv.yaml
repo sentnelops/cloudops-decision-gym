@@ -1,0 +1,141 @@
+name: cloudops-decision-gym
+version: "0.3.0"
+description: >
+  An environment for training AI agents to make safe cloud infrastructure
+  decisions. Agents manage EC2 instances across cost, security, and
+  performance objectives. Security-first ordering is enforced via reward
+  shaping and constraint penalties.
+
+observation_space:
+  type: dict
+  fields:
+    instance_type:
+      type: str
+      description: "EC2 instance type (e.g. m5.2xlarge)"
+    cpu_avg:
+      type: float
+      range: [0.0, 100.0]
+      description: "Average CPU utilization (%)"
+    cpu_p95:
+      type: float
+      range: [0.0, 100.0]
+      description: "95th-percentile CPU utilization (%)"
+    memory_avg:
+      type: float
+      range: [0.0, 100.0]
+      description: "Average memory utilization (%)"
+    monthly_cost:
+      type: float
+      range: [0.0, null]
+      description: "Estimated monthly cost (USD)"
+    internet_facing:
+      type: bool
+      description: "True if instance is publicly reachable"
+    ssh_open:
+      type: bool
+      description: "True if SSH port 22 is open to 0.0.0.0/0"
+    imds_version:
+      type: str
+      enum: [v1, v2]
+      description: "EC2 Instance Metadata Service version. v1 is vulnerable to SSRF."
+    environment:
+      type: str
+      enum: [prod, dev]
+      description: "Deployment environment. prod amplifies all penalties by 1.5x."
+
+action_space:
+  type: discrete
+  actions:
+    - name: DOWNSIZE
+      description: "Resize to the next smaller instance type in the cost hierarchy"
+    - name: UPSIZE
+      description: "Resize to the next larger instance type in the cost hierarchy"
+    - name: FIX_SECURITY
+      description: "Upgrade IMDSv1 to IMDSv2 and close SSH port 22 to 0.0.0.0/0"
+    - name: NOOP
+      description: "Take no action this step"
+
+reward:
+  type: continuous
+  range: [-1.0, 1.0]
+  description: >
+    Multi-objective scalar reward. Security improvements are weighted equally
+    with cost savings. Wrong action sequences (e.g. DOWNSIZE before FIX_SECURITY)
+    are penalized. All penalties are amplified 1.5x in production environments.
+  components:
+    cost_saving_score:
+      sign: positive
+      description: "Normalized monthly cost delta. Max +1.0 for maximum savings."
+    security_improvement_score:
+      sign: positive
+      description: "+0.30 for upgrading IMDSv1 to IMDSv2. +0.20 for closing SSH."
+    performance_risk_penalty:
+      sign: negative
+      description: "-0.50 if DOWNSIZE when cpu_p95 > 60%. -0.30 if memory_avg > 70%."
+    unsafe_action_penalty:
+      sign: negative
+      description: "-0.80 for UPSIZE on overprovisioned instance. -0.10 for NOOP when obvious."
+    sequencing_penalty:
+      sign: negative
+      description: >
+        -0.40 for DOWNSIZE before FIX_SECURITY (dev). -0.60 in prod (1.5x amplified).
+        -0.25 for NOOP while security issues exist.
+
+tasks:
+  - name: easy
+    description: >
+      Dev m5.2xlarge running at 7% average CPU (overprovisioned ~10x).
+      Security posture is clean. Agent must DOWNSIZE to reduce cost.
+    difficulty: easy
+    initial_state:
+      instance_type: m5.2xlarge
+      cpu_avg: 7.0
+      cpu_p95: 12.0
+      memory_avg: 18.0
+      monthly_cost: 276.48
+      internet_facing: false
+      ssh_open: false
+      imds_version: v2
+      environment: dev
+    optimal_sequence: [DOWNSIZE]
+    solved_condition: "instance_type in {t3.micro,t3.small,t3.medium,t3.large} AND cost reduced >= 40%"
+    max_steps: 5
+
+  - name: medium
+    description: >
+      Dev m5.xlarge at 12% CPU with IMDSv1 enabled, SSH open, and internet-facing.
+      Security vulnerabilities must be remediated before cost optimization.
+    difficulty: medium
+    initial_state:
+      instance_type: m5.xlarge
+      cpu_avg: 12.0
+      cpu_p95: 18.0
+      memory_avg: 22.0
+      monthly_cost: 175.20
+      internet_facing: true
+      ssh_open: true
+      imds_version: v1
+      environment: dev
+    optimal_sequence: [FIX_SECURITY, DOWNSIZE]
+    solved_condition: "is_secure AND cost reduced >= 20%"
+    max_steps: 7
+
+  - name: hard
+    description: >
+      Production m5.2xlarge at 35% avg / 52% p95 CPU with all security vulnerabilities.
+      Production environment amplifies all constraint penalties by 1.5x.
+      Agent must fix security first, then downsize carefully.
+    difficulty: hard
+    initial_state:
+      instance_type: m5.2xlarge
+      cpu_avg: 35.0
+      cpu_p95: 52.0
+      memory_avg: 45.0
+      monthly_cost: 276.48
+      internet_facing: true
+      ssh_open: true
+      imds_version: v1
+      environment: prod
+    optimal_sequence: [FIX_SECURITY, DOWNSIZE]
+    solved_condition: "is_secure AND cost reduced >= 20%"
+    max_steps: 8
