@@ -62,7 +62,7 @@ def grade_episode(
         + _W_RISK * risk_score
         + _W_EFFICIENCY * efficiency_score
     )
-    return round(max(0.0, min(1.0, total)), 4)
+    return round(max(0.001, min(0.999, total)), 4)
 
 
 def grade_episode_detailed(
@@ -96,7 +96,7 @@ def grade_episode_detailed(
         "sequence_correctness": round(sequence_score, 4),
         "no_risky_actions": round(risk_score, 4),
         "efficiency": round(efficiency_score, 4),
-        "total_score": round(max(0.0, min(1.0, total)), 4),
+        "total_score": round(max(0.001, min(0.999, total)), 4),
     }
 
 

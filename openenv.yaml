@@ -100,6 +100,10 @@ tasks:
     optimal_sequence: [DOWNSIZE]
     solved_condition: "instance_type in {t3.micro,t3.small,t3.medium,t3.large} AND cost reduced >= 40%"
     max_steps: 5
+    grader:
+      module: graders.ec2_grader
+      function: grade_episode_detailed
+      score_key: total_score
 
   - name: medium
     description: >
@@ -119,6 +123,10 @@ tasks:
     optimal_sequence: [FIX_SECURITY, DOWNSIZE]
     solved_condition: "is_secure AND cost reduced >= 20%"
     max_steps: 7
+    grader:
+      module: graders.ec2_grader
+      function: grade_episode_detailed
+      score_key: total_score
 
   - name: hard
     description: >
@@ -139,3 +147,7 @@ tasks:
     optimal_sequence: [FIX_SECURITY, DOWNSIZE]
     solved_condition: "is_secure AND cost reduced >= 20%"
     max_steps: 8
+    grader:
+      module: graders.ec2_grader
+      function: grade_episode_detailed
+      score_key: total_score
