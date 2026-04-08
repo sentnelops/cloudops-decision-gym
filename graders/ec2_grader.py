@@ -18,6 +18,16 @@ Scoring criteria (weights sum to 1.0):
     efficiency           (0.10)  No wasteful NOOPs or redundant steps?
 """
 
+import os as _os
+import sys as _sys
+
+# Ensure the package root is on sys.path so this module is importable
+# from any working directory (e.g. when the OpenEnv platform loads it).
+_GRADERS_DIR = _os.path.dirname(_os.path.abspath(__file__))
+_PKG_ROOT = _os.path.dirname(_GRADERS_DIR)
+if _PKG_ROOT not in _sys.path:
+    _sys.path.insert(0, _PKG_ROOT)
+
 from constants import (
     CPU_P95_DOWNSIZE_LIMIT,
     MEMORY_DOWNSIZE_LIMIT,

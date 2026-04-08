@@ -1,9 +1,14 @@
+spec_version: 1
 name: cloudops-decision-gym
-version: "0.3.0"
+type: space
+runtime: fastapi
+app: app:app
+port: 7860
+
 description: >
-  An environment for training AI agents to make safe cloud infrastructure
-  decisions. Agents manage EC2 instances across cost, security, and
-  performance objectives. Security-first ordering is enforced via reward
+  An environment for training AI agents to make safe, cost-effective cloud
+  infrastructure decisions. Agents manage EC2 instances across cost, security,
+  and performance objectives. Security-first ordering is enforced via reward
   shaping and constraint penalties.
 
 observation_space:
@@ -55,32 +60,6 @@ action_space:
     - name: NOOP
       description: "Take no action this step"
 
-reward:
-  type: continuous
-  range: [-1.0, 1.0]
-  description: >
-    Multi-objective scalar reward. Security improvements are weighted equally
-    with cost savings. Wrong action sequences (e.g. DOWNSIZE before FIX_SECURITY)
-    are penalized. All penalties are amplified 1.5x in production environments.
-  components:
-    cost_saving_score:
-      sign: positive
-      description: "Normalized monthly cost delta. Max +1.0 for maximum savings."
-    security_improvement_score:
-      sign: positive
-      description: "+0.30 for upgrading IMDSv1 to IMDSv2. +0.20 for closing SSH."
-    performance_risk_penalty:
-      sign: negative
-      description: "-0.50 if DOWNSIZE when cpu_p95 > 60%. -0.30 if memory_avg > 70%."
-    unsafe_action_penalty:
-      sign: negative
-      description: "-0.80 for UPSIZE on overprovisioned instance. -0.10 for NOOP when obvious."
-    sequencing_penalty:
-      sign: negative
-      description: >
-        -0.40 for DOWNSIZE before FIX_SECURITY (dev). -0.60 in prod (1.5x amplified).
-        -0.25 for NOOP while security issues exist.
-
 tasks:
   - name: easy
     description: >
@@ -102,8 +81,8 @@ tasks:
     max_steps: 5
     grader:
       module: graders.ec2_grader
-      function: grade_episode_detailed
-      score_key: total_score
+      function: grade_episode
+      score_key: null
 
   - name: medium
     description: >
@@ -125,8 +104,8 @@ tasks:
     max_steps: 7
     grader:
       module: graders.ec2_grader
-      function: grade_episode_detailed
-      score_key: total_score
+      function: grade_episode
+      score_key: null
 
   - name: hard
     description: >
@@ -149,5 +128,5 @@ tasks:
     max_steps: 8
     grader:
       module: graders.ec2_grader
-      function: grade_episode_detailed
-      score_key: total_score
+      function: grade_episode
+      score_key: null

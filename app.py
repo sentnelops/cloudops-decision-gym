@@ -715,6 +715,27 @@ async def api_step(req: _StepRequest):
     }
 
 
+class _GradeRequest(_BaseModel):
+    actions: list = []
+    initial_observation: dict = {}
+    final_observation: dict = {}
+    task_name: str = "easy"
+
+
+@api.post("/grade")
+async def api_grade(req: _GradeRequest):
+    from graders.ec2_grader import grade_episode_detailed
+    try:
+        result = grade_episode_detailed(
+            req.actions,
+            req.final_observation,
+            req.initial_observation,
+        )
+        return {"score": result["total_score"], "breakdown": result}
+    except Exception as exc:
+        return JSONResponse(status_code=400, content={"error": str(exc)})
+
+
 # ---------------------------------------------------------------------------
 # UI
 # ---------------------------------------------------------------------------
