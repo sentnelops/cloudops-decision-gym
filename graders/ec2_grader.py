@@ -25,6 +25,44 @@ from constants import (
 from env.actions import Action
 from models import EC2State
 
+# ---------------------------------------------------------------------------
+# Input normalisation — accept strings/dicts/Pydantic models from the platform
+# ---------------------------------------------------------------------------
+
+def _normalise_actions(actions: list) -> list[Action]:
+    """Convert any action representation to internal Action IntEnum."""
+    result = []
+    for a in actions:
+        if isinstance(a, Action):
+            result.append(a)
+        elif isinstance(a, str):
+            result.append(Action[a.upper()])
+        elif isinstance(a, dict):
+            key = a.get("action_type") or a.get("action") or "NOOP"
+            result.append(Action[key.upper()])
+        else:
+            result.append(Action(int(a)))
+    return result
+
+
+def _normalise_state(state) -> EC2State:
+    """Convert Observation, plain dict, or EC2State to EC2State."""
+    if isinstance(state, EC2State):
+        return state
+    d = state.model_dump() if hasattr(state, "model_dump") else dict(state)
+    return EC2State(
+        instance_type=d["instance_type"],
+        cpu_avg=float(d["cpu_avg"]),
+        cpu_p95=float(d["cpu_p95"]),
+        memory_avg=float(d["memory_avg"]),
+        monthly_cost=float(d["monthly_cost"]),
+        internet_facing=bool(d["internet_facing"]),
+        ssh_open=bool(d["ssh_open"]),
+        imds_version=d["imds_version"],
+        environment=d["environment"],
+    )
+
+
 # Grading weights — must sum to 1.0
 _W_COST = 0.25
 _W_SAFETY = 0.25
@@ -34,21 +72,23 @@ _W_EFFICIENCY = 0.10
 
 
 def grade_episode(
-    actions: list[Action],
-    final_state: EC2State,
-    initial_state: EC2State,
+    actions: list,
+    final_state,
+    initial_state,
 ) -> float:
     """
     Score a completed episode based on final outcomes and action history.
 
-    Args:
-        actions:       Ordered list of actions taken during the episode.
-        final_state:   EC2State at episode end.
-        initial_state: EC2State at episode start (before any actions).
+    Accepts actions as Action IntEnum, strings, or dicts.
+    Accepts states as EC2State, Observation (Pydantic), or plain dicts.
 
     Returns:
-        float in [0.0, 1.0] — higher is better.
+        float strictly in (0.0, 1.0) — higher is better.
     """
+    actions = _normalise_actions(actions)
+    final_state = _normalise_state(final_state)
+    initial_state = _normalise_state(initial_state)
+
     cost_score = _score_cost_reduction(initial_state, final_state)
     safety_score = _score_safety_maintained(initial_state, final_state)
     sequence_score = _score_sequence_correctness(actions, initial_state)
@@ -66,17 +106,24 @@ def grade_episode(
 
 
 def grade_episode_detailed(
-    actions: list[Action],
-    final_state: EC2State,
-    initial_state: EC2State,
+    actions: list,
+    final_state,
+    initial_state,
 ) -> dict[str, float]:
     """
     Same as grade_episode but returns per-criterion scores for diagnostics.
+
+    Accepts actions as Action IntEnum, strings, or dicts.
+    Accepts states as EC2State, Observation (Pydantic), or plain dicts.
 
     Returns:
         dict with keys: cost_reduction, safety_maintained, sequence_correctness,
                         no_risky_actions, efficiency, total_score
     """
+    actions = _normalise_actions(actions)
+    final_state = _normalise_state(final_state)
+    initial_state = _normalise_state(initial_state)
+
     cost_score = _score_cost_reduction(initial_state, final_state)
     safety_score = _score_safety_maintained(initial_state, final_state)
     sequence_score = _score_sequence_correctness(actions, initial_state)
