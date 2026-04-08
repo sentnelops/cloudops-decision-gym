@@ -80,9 +80,8 @@ tasks:
     solved_condition: "instance_type in {t3.micro,t3.small,t3.medium,t3.large} AND cost reduced >= 40%"
     max_steps: 5
     grader:
-      module: graders.ec2_grader
-      function: grade_episode
-      score_key: null
+      endpoint: /grader
+      score_key: score
 
   - name: medium
     description: >
@@ -103,9 +102,8 @@ tasks:
     solved_condition: "is_secure AND cost reduced >= 20%"
     max_steps: 7
     grader:
-      module: graders.ec2_grader
-      function: grade_episode
-      score_key: null
+      endpoint: /grader
+      score_key: score
 
   - name: hard
     description: >
@@ -127,6 +125,5 @@ tasks:
     solved_condition: "is_secure AND cost reduced >= 20%"
     max_steps: 8
     grader:
-      module: graders.ec2_grader
-      function: grade_episode
-      score_key: null
+      endpoint: /grader
+      score_key: score
