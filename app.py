@@ -804,6 +804,13 @@ async def api_grader(req: _GraderRequest):
         return JSONResponse(status_code=500, content={"error": str(exc)})
 
 
+@api.post("/grader/{task_name}")
+async def api_grader_specific(task_name: str, req: _GraderRequest):
+    """Task-specific grader endpoint for platform compatibility."""
+    req.task_id = task_name or req.task_id
+    return await api_grader(req)
+
+
 @api.post("/grade")
 async def api_grade(req: _GraderRequest):
     """Alias for /grader for backwards compatibility."""

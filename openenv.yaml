@@ -61,7 +61,8 @@ action_space:
       description: "Take no action this step"
 
 tasks:
-  - name: easy
+  - id: easy
+    name: easy
     description: >
       Dev m5.2xlarge running at 7% average CPU (overprovisioned ~10x).
       Security posture is clean. Agent must DOWNSIZE to reduce cost.
@@ -80,10 +81,11 @@ tasks:
     solved_condition: "instance_type in {t3.micro,t3.small,t3.medium,t3.large} AND cost reduced >= 40%"
     max_steps: 5
     grader:
-      endpoint: /grader
+      endpoint: /grader/easy
       score_key: score
 
-  - name: medium
+  - id: medium
+    name: medium
     description: >
       Dev m5.xlarge at 12% CPU with IMDSv1 enabled, SSH open, and internet-facing.
       Security vulnerabilities must be remediated before cost optimization.
@@ -102,10 +104,11 @@ tasks:
     solved_condition: "is_secure AND cost reduced >= 20%"
     max_steps: 7
     grader:
-      endpoint: /grader
+      endpoint: /grader/medium
       score_key: score
 
-  - name: hard
+  - id: hard
+    name: hard
     description: >
       Production m5.2xlarge at 35% avg / 52% p95 CPU with all security vulnerabilities.
       Production environment amplifies all constraint penalties by 1.5x.
@@ -125,5 +128,5 @@ tasks:
     solved_condition: "is_secure AND cost reduced >= 20%"
     max_steps: 8
     grader:
-      endpoint: /grader
+      endpoint: /grader/hard
       score_key: score
