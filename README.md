@@ -1,12 +1,11 @@
 ---
 title: CloudOps Decision Gym
 emoji: ☁️
-colorFrom: slate
+colorFrom: blue
 colorTo: indigo
 sdk: docker
-sdk_version: ""
 python_version: "3.12"
-app_file: app.py
+app_file: main.py
 pinned: false
 ---
 
@@ -72,7 +71,7 @@ cloudops-decision-gym/
 │
 ├── openenv.yaml                    # OpenEnv specification
 ├── inference.py                    # LLM inference loop
-├── app.py                          # Gradio UI (Hugging Face Spaces ready)
+├── main.py                         # Root entry point for deployment
 └── README.md
 ```
 
@@ -145,7 +144,7 @@ Final score: 0.9451
 ### 3. Launch the interactive UI
 
 ```bash
-python app.py
+python main.py
 # → Open http://localhost:7860
 ```
 
@@ -515,9 +514,9 @@ Or register it in the string registry by editing `_build_registry()` in [env/env
    pyyaml>=6.0
    ```
 
-3. Push the repository. The Space will automatically run `app.py`.
+3. Push the repository. The Space will automatically run `main.py`.
 
-The `app.py` launches with `server_name="0.0.0.0"` which is required for Spaces.
+The `main.py` launches with `server_name="0.0.0.0"` which is required for Spaces.
 
 ---
 

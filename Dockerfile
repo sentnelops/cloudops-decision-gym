@@ -31,4 +31,4 @@ COPY --chown=appuser:appuser . .
 EXPOSE 7860
 
 # Run the app using the root wrapper which handles path setup
-CMD ["python", "app.py"]
+CMD ["python", "main.py"]
