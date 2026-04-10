@@ -108,6 +108,13 @@ CSS = """
 }
 .panel:hover { transform: translateY(-2px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4); }
 
+/* Ensure text inside panels is always dark even in Gradio dark mode */
+.panel, .panel * {
+    --text-main: #0f172a !important;
+    --text-muted: #334155 !important;
+}
+
+
 .panel-title {
     font-size: 0.75rem;
     font-weight: 800;
@@ -190,7 +197,7 @@ CSS = """
     color: var(--text-muted) !important;
     margin-bottom: 8px;
 }
-.score-label-name { color: var(--text-main); }
+.score-label-name { color: var(--text-main) !important; }
 .score-bar-track {
     height: 12px;
     background: #f1f5f9 !important;
@@ -566,8 +573,8 @@ def render_score(detail: dict[str, float], done: bool) -> str:
             f'<div class="score-row">'
             f'<div class="score-label">'
             f'<span class="score-label-name">{label}</span>'
-            f'<span style="font-family:monospace;font-weight:700;color:var(--text-main);">'
-            f'{val:.2f} <span style="color:var(--text-muted);font-weight:400;">× {weight:.2f}</span>'
+            f'<span style="font-family:monospace;font-weight:700;color:var(--text-main) !important;">'
+            f'{val:.2f} <span style="color:var(--text-muted) !important;font-weight:400;">× {weight:.2f}</span>'
             f'</span>'
             f'</div>'
             f'{_bar(val, color)}'
