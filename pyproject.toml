@@ -26,7 +26,8 @@ dependencies = [
 server = "app:main"
 
 [tool.setuptools]
-packages = ["env", "graders", "scenarios"]
+package-dir = {"" = "src"}
+packages = ["env", "graders", "scenarios", "server"]
 
 [project.optional-dependencies]
 dev = [

@@ -1,3 +1,15 @@
+---
+title: CloudOps Decision Gym
+emoji: ☁️
+colorFrom: slate
+colorTo: indigo
+sdk: docker
+sdk_version: ""
+python_version: "3.12"
+app_file: app.py
+pinned: false
+---
+
 # CloudOps Decision Gym
 
 An open-source environment for training AI agents to make safe, cost-effective cloud infrastructure decisions.
