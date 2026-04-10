@@ -4,7 +4,7 @@ FROM python:3.11.9-slim-bookworm
 # Set environment variables for better Python behavior in containers
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app/src
+    PYTHONPATH=/app
 
 WORKDIR /app
 
