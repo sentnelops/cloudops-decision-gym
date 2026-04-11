@@ -81,7 +81,7 @@ tasks:
     solved_condition: "instance_type in {t3.micro,t3.small,t3.medium,t3.large} AND cost reduced >= 40%"
     max_steps: 5
     grader:
-      endpoint: /grader/easy
+      type: local
       score_key: score
 
   - id: medium
@@ -104,7 +104,7 @@ tasks:
     solved_condition: "is_secure AND cost reduced >= 20%"
     max_steps: 7
     grader:
-      endpoint: /grader/medium
+      type: local
       score_key: score
 
   - id: hard
@@ -128,5 +128,5 @@ tasks:
     solved_condition: "is_secure AND cost reduced >= 20%"
     max_steps: 8
     grader:
-      endpoint: /grader/hard
+      type: local
       score_key: score

@@ -768,7 +768,6 @@ _TASK_METADATA = {
         "grader_endpoint": "/grader/medium"
     },
     "hard": {
-        "id": "hard",
         "name": "Production Risk Management",
         "description": "High-stakes optimization in a sensitive production environment.",
         "difficulty": "hard",

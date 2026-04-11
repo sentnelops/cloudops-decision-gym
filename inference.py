@@ -32,6 +32,13 @@ import sys
 from typing import Any
 
 # ---------------------------------------------------------------------------
+# Ensure root is in sys.path for internal imports (env, graders, etc.)
+# ---------------------------------------------------------------------------
+_HERE = os.path.dirname(os.path.abspath(__file__))
+if _HERE not in sys.path:
+    sys.path.insert(0, _HERE)
+
+# ---------------------------------------------------------------------------
 # Config from environment variables
 # ---------------------------------------------------------------------------
 
@@ -208,54 +215,85 @@ def _parse_action(content: str) -> tuple[str, str | None]:
 def run(task_name: str = TASK_NAME, max_steps: int = MAX_STEPS) -> bool:
     """
     Run one episode of the specified task using the configured LLM.
+    Guarantees that a [SCORE] line is printed to stdout no matter what happens.
 
     Returns:
-        True if the episode was solved, False if timed out.
+        True if the episode was solved, False if timed out or failed.
     """
     # Imports here so the module is importable even without pydantic installed
     from env.environment import CloudOpsEnv
     from openenv_models import Action
+    from graders.ec2_grader import grade_episode
 
     log_start(task=task_name, model=MODEL_NAME)
 
-    client = _build_client()
-
-    try:
-        env = CloudOpsEnv(scenario=task_name)
-    except ValueError as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
-        sys.exit(1)
-
-    obs = env.reset()
-
+    env = None
+    initial_state = None
+    actions_taken: list[str] = []
     rewards_log: list[float] = []
     success = False
     steps_taken = 0
 
-    for step_num in range(1, max_steps + 1):
-        # Call LLM
-        action_type, parse_error = call_llm(client, obs.to_prompt_dict())
+    try:
+        client = _build_client()
 
-        # Submit action to environment
         try:
-            action = Action(action_type=action_type)
-            obs, reward, done, info = env.step(action)
+            env = CloudOpsEnv(scenario=task_name)
         except Exception as exc:
-            # Unexpected environment error — log and abort
-            log_step(step_num, action_type, 0.0, True, f"env error: {exc}")
-            log_end(success=False, steps=step_num, rewards=rewards_log)
+            # Fatal scenario loading error
+            print(f"ERROR: Failed to load scenario {task_name}: {exc}", file=sys.stderr)
             return False
 
-        rewards_log.append(reward.value)
-        steps_taken = step_num
-        log_step(step_num, action_type, reward.value, done, parse_error)
+        obs = env.reset()
+        initial_state = env.state()
 
-        if done:
-            success = info.get("solved", False)
-            break
+        for step_num in range(1, max_steps + 1):
+            # Call LLM
+            action_type, parse_error = call_llm(client, obs.to_prompt_dict())
+            actions_taken.append(action_type)
 
-    log_end(success=success, steps=steps_taken, rewards=rewards_log)
-    return success
+            # Submit action to environment
+            try:
+                action = Action(action_type=action_type)
+                obs, reward, done, info = env.step(action)
+            except Exception as exc:
+                # Unexpected environment error — log and abort
+                log_step(step_num, action_type, 0.0, True, f"env error: {exc}")
+                break
+
+            rewards_log.append(reward.value)
+            steps_taken = step_num
+            log_step(step_num, action_type, reward.value, done, parse_error)
+
+            if done:
+                success = info.get("solved", False)
+                break
+
+        return success
+
+    finally:
+        # GUARANTEED scoring block
+        score = 0.01  # Default failure score
+        try:
+            if env and initial_state:
+                # Calculate actual score using current state (works for done or timeout)
+                score = grade_episode(
+                    actions=actions_taken,
+                    final_state=env.state(),
+                    initial_state=initial_state
+                )
+            
+            # Enforce strict OpenEnv rule: strictly in (0, 1)
+            if score <= 0.0:
+                score = 0.01
+            elif score >= 1.0:
+                score = 0.99
+        except Exception as exc:
+            print(f"ERROR: Grader failed for {task_name}: {exc}", file=sys.stderr)
+            score = 0.01  # Safe fallback
+
+        print(f"[SCORE] task={task_name} score={score:.4f}", flush=True)
+        log_end(success=success, steps=steps_taken, rewards=rewards_log)
 
 
 # ---------------------------------------------------------------------------
@@ -263,11 +301,22 @@ def run(task_name: str = TASK_NAME, max_steps: int = MAX_STEPS) -> bool:
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    # Allow overriding task via CLI arg: python inference.py hard
+    # If no arg provided, run all 3 tasks as required by OpenEnv
     if len(sys.argv) > 1:
-        task_arg = sys.argv[1]
+        tasks_to_run = [sys.argv[1]]
     else:
-        task_arg = TASK_NAME
+        tasks_to_run = ["easy", "medium", "hard"]
 
-    solved = run(task_name=task_arg)
-    sys.exit(0)  # always exit 0 — script completed, result is in [END] line
+    for task_name in tasks_to_run:
+        print(f"\n# Executing: {task_name}", file=sys.stderr)
+        try:
+            run(task_name=task_name)
+        except Exception as exc:
+            # Absolute last resort for the task loop
+            print(f"ERROR: Unhandled exception in {task_name}: {exc}", file=sys.stderr)
+            # If run() finally block wasn't reached, we must at least print the task score
+            # though run() with finally should handle almost everything.
+            print(f"[SCORE] task={task_name} score=0.0100", flush=True)
+
+    # Exit 0 — the results are in the stdout logs
+    sys.exit(0)

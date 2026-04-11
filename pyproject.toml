@@ -23,10 +23,8 @@ dependencies = [
 ]
 
 [project.scripts]
-server = "app:main"
+server = "server.app:main"
 
-[tool.setuptools]
-package-dir = {"" = "src"}
 packages = ["env", "graders", "scenarios", "server"]
 
 [project.optional-dependencies]

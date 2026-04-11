@@ -113,8 +113,8 @@ def grade_episode(
         + _W_EFFICIENCY * efficiency_score
     )
     # Clamp to strictly (0, 1) and ensure it's not exactly 0.0 or 1.0
-    # Range [0.10, 0.90] is safe and clearly within the required interval.
-    return round(float(max(0.1, min(0.9, total))), 4)
+    # Range [0.051, 0.949] is safe and clearly within the required interval.
+    return round(float(max(0.051, min(0.949, total))), 4)
 
 
 def grade_episode_detailed(
@@ -155,7 +155,7 @@ def grade_episode_detailed(
         "sequence_correctness": round(sequence_score, 4),
         "no_risky_actions": round(risk_score, 4),
         "efficiency": round(efficiency_score, 4),
-        "total_score": round(float(max(0.1, min(0.9, total))), 4),
+        "total_score": round(float(max(0.051, min(0.949, total))), 4),
     }
 
 
