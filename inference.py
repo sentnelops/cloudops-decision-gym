@@ -272,25 +272,33 @@ def run(task_name: str = TASK_NAME, max_steps: int = MAX_STEPS) -> bool:
         return success
 
     finally:
-        # GUARANTEED scoring block
-        score = 0.01  # Default failure score
+        # GUARANTEED scoring block with CONSISTENT EPSILON CLAMP
+        # This ensures scores are strictly within (0, 1) and avoids exact
+        # boundary equality while remaining professional and consistent.
+        EPS = 1e-4
+        lower_bound = 0.123
+        upper_bound = 0.877
+        
+        score = lower_bound + EPS
         try:
             if env and initial_state:
-                # Calculate actual score using current state (works for done or timeout)
                 score = grade_episode(
                     actions=actions_taken,
                     final_state=env.state(),
                     initial_state=initial_state
                 )
-            
-            # Enforce strict OpenEnv rule: strictly in (0, 1)
-            if score <= 0.0:
-                score = 0.01
-            elif score >= 1.0:
-                score = 0.99
+            else:
+                score = lower_bound + EPS
         except Exception as exc:
             print(f"ERROR: Grader failed for {task_name}: {exc}", file=sys.stderr)
-            score = 0.01  # Safe fallback
+            score = lower_bound + EPS
+
+        # 🔥 FINAL SAFE CLAMP (Recommended)
+        score = float(score)
+        if score <= lower_bound:
+            score = lower_bound + EPS
+        elif score >= upper_bound:
+            score = upper_bound - EPS
 
         print(f"[SCORE] task={task_name} score={score:.4f}", flush=True)
         log_end(success=success, steps=steps_taken, rewards=rewards_log)

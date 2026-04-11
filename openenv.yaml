@@ -1,9 +1,7 @@
 spec_version: 1
 name: cloudops-decision-gym
 type: space
-runtime: fastapi
-app: server.app:app
-port: 7860
+runtime: python
 
 description: >
   An environment for training AI agents to make safe, cost-effective cloud
