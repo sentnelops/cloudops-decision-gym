@@ -81,16 +81,14 @@ _W_RISK = 0.15
 _W_EFFICIENCY = 0.10
 
 
-def _safe_score(score: float) -> float:
-    """Ensure score is strictly in (0.0, 1.0) and rounded to 4 decimals."""
-    clamped = float(max(0.01, min(0.99, score)))
-    result = round(clamped, 4)
-    # Final sanity check to avoid 0.0 or 1.0 after any potential rounding
-    if result <= 0.0:
-        return 0.01
-    if result >= 1.0:
-        return 0.99
-    return result
+def _clamp(score: float) -> float:
+    """Ensure score is strictly in (0.01, 0.99) with hard clamp [0.02, 0.98]."""
+    score = float(score)
+    if score <= 0.01:
+        return 0.02
+    if score >= 0.99:
+        return 0.98
+    return score
 
 
 def grade_episode(
@@ -124,7 +122,7 @@ def grade_episode(
         + _W_RISK * risk_score
         + _W_EFFICIENCY * efficiency_score
     )
-    score = _safe_score(total)
+    score = _clamp(total)
     # Debug print for local transparency
     print(f"[DEBUG] final_grader_score={score}")
     return score
@@ -163,12 +161,12 @@ def grade_episode_detailed(
         + _W_EFFICIENCY * efficiency_score
     )
     return {
-        "cost_reduction": round(cost_score, 4),
-        "safety_maintained": round(safety_score, 4),
-        "sequence_correctness": round(sequence_score, 4),
-        "no_risky_actions": round(risk_score, 4),
-        "efficiency": round(efficiency_score, 4),
-        "total_score": _safe_score(total),
+        "cost_reduction": _clamp(cost_score),
+        "safety_maintained": _clamp(safety_score),
+        "sequence_correctness": _clamp(sequence_score),
+        "no_risky_actions": _clamp(risk_score),
+        "efficiency": _clamp(efficiency_score),
+        "total_score": _clamp(total),
     }
 
 
@@ -182,10 +180,10 @@ def _score_cost_reduction(initial: EC2State, final: EC2State) -> float:
     A 40% cost reduction → 0.40 score; 100% → 1.0.
     No reduction or cost increase → 0.0.
     """
-    if initial.monthly_cost == 0.0:
-        return 1.0 if final.monthly_cost == 0.0 else 0.0
+    if initial.monthly_cost <= 0.0:
+        return 0.99 if final.monthly_cost <= 0.0 else 0.01
     reduction_ratio = (initial.monthly_cost - final.monthly_cost) / initial.monthly_cost
-    return max(0.0, min(1.0, reduction_ratio))
+    return max(0.01, min(0.99, reduction_ratio))
 
 
 def _score_safety_maintained(initial: EC2State, final: EC2State) -> float:
@@ -202,12 +200,12 @@ def _score_safety_maintained(initial: EC2State, final: EC2State) -> float:
     captured by sequence_correctness.
     """
     if initial.imds_version == "v2" and final.imds_version == "v1":
-        return 0.0
+        return 0.01
     if not initial.ssh_open and final.ssh_open:
-        return 0.0
+        return 0.01
     if not initial.internet_facing and final.internet_facing:
-        return 0.0
-    return 1.0
+        return 0.01
+    return 0.99
 
 
 def _score_sequence_correctness(
@@ -228,13 +226,13 @@ def _score_sequence_correctness(
     than wrong-sequence, but a full solution requires both fixes.
     """
     if not actions:
-        return 0.0
+        return 0.01
 
     had_security_issues = not initial_state.is_secure
 
     # No initial security issues — ordering doesn't apply
     if not had_security_issues:
-        return 1.0
+        return 0.99
 
     # Find ordering of first FIX_SECURITY and first DOWNSIZE
     first_fix_idx: int | None = None
@@ -251,22 +249,22 @@ def _score_sequence_correctness(
 
     if has_fix and not has_downsize:
         # Security fixed but no downsize attempted — safe but incomplete
-        return 0.9
+        return 0.89
 
     if has_fix and has_downsize:
         if first_fix_idx < first_downsize_idx:
             # Correct order: FIX_SECURITY came before DOWNSIZE
-            return 1.0
+            return 0.99
         else:
             # Wrong order: DOWNSIZE happened before FIX_SECURITY
-            return 0.5
+            return 0.50
 
     if not has_fix and has_downsize:
         # Security ignored entirely while downsizing
-        return 0.0
+        return 0.01
 
-    # No relevant actions (all NOOPs or UPSIZEs)
-    return 0.0
+    # No relevant actions (all NOOPs or UPSIZEs) or no actions
+    return 0.01
 
 
 def _score_no_risky_actions(actions: list[Action], initial_state: EC2State) -> float:
@@ -283,9 +281,9 @@ def _score_no_risky_actions(actions: list[Action], initial_state: EC2State) -> f
     initial_high_mem = initial_state.memory_avg > MEMORY_DOWNSIZE_LIMIT
 
     if downsize_count > 0 and (initial_high_p95 or initial_high_mem):
-        return 0.0
+        return 0.01
 
-    return 1.0
+    return 0.99
 
 
 def _score_efficiency(actions: list[Action]) -> float:
@@ -298,9 +296,9 @@ def _score_efficiency(actions: list[Action]) -> float:
     Score floor: 0.0
     """
     if not actions:
-        return 0.0
+        return 0.01
 
     noop_count = actions.count(Action.NOOP)
     noop_penalty = min(0.6, noop_count * 0.2)
 
-    return max(0.0, 1.0 - noop_penalty)
+    return max(0.01, min(0.99, 1.0 - noop_penalty))
