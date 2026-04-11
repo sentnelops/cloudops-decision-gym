@@ -754,7 +754,28 @@ _api_env: CloudOpsEnv | None = None
 _api_initial_obs: dict = {}
 _api_actions_taken: list = []
 
-_TASK_NAMES = ["easy", "medium", "hard"]
+_TASK_METADATA = {
+    "easy": {
+        "name": "Cost Waste Detection",
+        "description": "Optimize an overprovisioned dev instance safely.",
+        "difficulty": "easy",
+        "grader_endpoint": "/grader/easy"
+    },
+    "medium": {
+        "name": "Security Remediation",
+        "description": "Fix security vulnerabilities before optimizing cost.",
+        "difficulty": "medium",
+        "grader_endpoint": "/grader/medium"
+    },
+    "hard": {
+        "id": "hard",
+        "name": "Production Risk Management",
+        "description": "High-stakes optimization in a sensitive production environment.",
+        "difficulty": "hard",
+        "grader_endpoint": "/grader/hard"
+    }
+}
+_TASK_NAMES = list(_TASK_METADATA.keys())
 
 
 @api.get("/health")
@@ -766,8 +787,14 @@ async def api_health():
 async def api_tasks():
     return {
         "tasks": [
-            {"id": t, "name": t, "description": f"CloudOps {t} scenario"}
-            for t in _TASK_NAMES
+            {
+                "id": tid,
+                "name": meta["name"],
+                "description": meta["description"],
+                "difficulty": meta["difficulty"],
+                "grader": meta["grader_endpoint"]
+            }
+            for tid, meta in _TASK_METADATA.items()
         ]
     }
 
@@ -870,7 +897,9 @@ async def api_grader(req: _GraderRequest):
         score = _run_grader(task, actions, init_obs, final_obs)
         return {"score": score, "task_id": task, "passed": score > 0.5}
     except Exception as exc:
-        return JSONResponse(status_code=500, content={"error": str(exc)})
+        # Fallback: return a neutral numeric score between 0 and 1 to prevent platform failures
+        # if the input or environment is in an unexpected state.
+        return {"score": 0.15, "task_id": task, "passed": False, "error": str(exc)}
 
 
 @api.post("/grader/{task_name}")
