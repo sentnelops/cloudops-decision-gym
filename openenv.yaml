@@ -80,7 +80,6 @@ tasks:
     max_steps: 5
     grader:
       type: local
-      score_key: score
 
   - id: medium
     name: medium
@@ -103,7 +102,6 @@ tasks:
     max_steps: 7
     grader:
       type: local
-      score_key: score
 
   - id: hard
     name: hard
@@ -127,4 +125,3 @@ tasks:
     max_steps: 8
     grader:
       type: local
-      score_key: score

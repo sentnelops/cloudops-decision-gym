@@ -81,6 +81,18 @@ _W_RISK = 0.15
 _W_EFFICIENCY = 0.10
 
 
+def _safe_score(score: float) -> float:
+    """Ensure score is strictly in (0.0, 1.0) and rounded to 4 decimals."""
+    clamped = float(max(0.01, min(0.99, score)))
+    result = round(clamped, 4)
+    # Final sanity check to avoid 0.0 or 1.0 after any potential rounding
+    if result <= 0.0:
+        return 0.01
+    if result >= 1.0:
+        return 0.99
+    return result
+
+
 def grade_episode(
     actions: list,
     final_state,
@@ -112,9 +124,10 @@ def grade_episode(
         + _W_RISK * risk_score
         + _W_EFFICIENCY * efficiency_score
     )
-    # Clamp to strictly (0, 1) and ensure it's not exactly 0.0 or 1.0
-    # Range [0.051, 0.949] is safe and clearly within the required interval.
-    return round(float(max(0.051, min(0.949, total))), 4)
+    score = _safe_score(total)
+    # Debug print for local transparency
+    print(f"[DEBUG] final_grader_score={score}")
+    return score
 
 
 def grade_episode_detailed(
@@ -155,7 +168,7 @@ def grade_episode_detailed(
         "sequence_correctness": round(sequence_score, 4),
         "no_risky_actions": round(risk_score, 4),
         "efficiency": round(efficiency_score, 4),
-        "total_score": round(float(max(0.051, min(0.949, total))), 4),
+        "total_score": _safe_score(total),
     }
 
 
